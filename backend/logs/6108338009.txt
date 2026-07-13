@@ -1,0 +1,185 @@
+
+============================================================
+2026-07-12 17:13:48.812402
+USER MESSAGE
+Hi
+
+============================================================
+2026-07-12 17:13:51.832058
+USER MESSAGE
+Vinay
+
+============================================================
+2026-07-12 17:13:51.833159
+CONVERSATION
+
+User: Vinay
+
+============================================================
+2026-07-12 17:13:52.302159
+EXTRACTED LEAD
+{'name': 'Vinay', 'country': None, 'budget': None, 'funding': None, 'timeline': None, 'purpose': None}
+
+============================================================
+2026-07-12 17:13:52.303532
+BOT REPLY
+Nice to meet you, Vinay 😊
+
+Which country are you currently residing in?
+
+============================================================
+2026-07-12 17:13:56.451038
+USER MESSAGE
+India
+
+============================================================
+2026-07-12 17:13:56.452233
+CONVERSATION
+
+User: Vinay
+Assistant: Nice to meet you, Vinay 😊
+
+Which country are you currently residing in?
+User: India
+
+============================================================
+2026-07-12 17:13:56.662032
+EXTRACTED LEAD
+{'name': 'Vinay', 'country': 'India', 'budget': None, 'funding': None, 'timeline': None, 'purpose': None}
+
+============================================================
+2026-07-12 17:13:56.663681
+BOT REPLY
+Do you have an investment budget range in mind?
+
+============================================================
+2026-07-12 17:14:06.724332
+USER MESSAGE
+7000000+
+
+============================================================
+2026-07-12 17:14:06.725232
+CONVERSATION
+
+User: Vinay
+Assistant: Nice to meet you, Vinay 😊
+
+Which country are you currently residing in?
+User: India
+Assistant: Do you have an investment budget range in mind?
+User: 7000000+
+
+============================================================
+2026-07-12 17:14:07.005875
+EXTRACTED LEAD
+{'name': 'Vinay', 'country': 'India', 'budget': 7000000, 'funding': None, 'timeline': None, 'purpose': None}
+
+============================================================
+2026-07-12 17:14:07.006579
+BOT REPLY
+Will the purchase be through cash or mortgage financing?
+
+============================================================
+2026-07-12 17:14:14.093260
+USER MESSAGE
+Cash
+
+============================================================
+2026-07-12 17:14:14.095000
+CONVERSATION
+
+User: Vinay
+Assistant: Nice to meet you, Vinay 😊
+
+Which country are you currently residing in?
+User: India
+Assistant: Do you have an investment budget range in mind?
+User: 7000000+
+Assistant: Will the purchase be through cash or mortgage financing?
+User: Cash
+
+============================================================
+2026-07-12 17:14:14.446528
+EXTRACTED LEAD
+{'name': 'Vinay', 'country': 'India', 'budget': 7000000, 'funding': 'Cash', 'timeline': None, 'purpose': 'Investment'}
+
+============================================================
+2026-07-12 17:14:14.447944
+BOT REPLY
+What is your expected purchase timeline?
+
+============================================================
+2026-07-12 17:14:15.113743
+FINAL LEAD
+{'name': 'Vinay', 'country': 'India', 'budget': 7000000, 'funding': 'Cash', 'timeline': None, 'purpose': 'Investment', 'grade': 'B'}
+
+============================================================
+2026-07-12 17:14:15.368059
+N8N SENT
+{'name': 'Vinay', 'country': 'India', 'budget': 7000000, 'funding': 'Cash', 'timeline': None, 'purpose': 'Investment', 'grade': 'B'}
+
+============================================================
+2026-07-12 17:14:20.834627
+USER MESSAGE
+7
+
+============================================================
+2026-07-12 17:14:20.835254
+CONVERSATION
+
+User: Vinay
+Assistant: Nice to meet you, Vinay 😊
+
+Which country are you currently residing in?
+User: India
+Assistant: Do you have an investment budget range in mind?
+User: 7000000+
+Assistant: Will the purchase be through cash or mortgage financing?
+User: Cash
+Assistant: What is your expected purchase timeline?
+User: 7
+
+============================================================
+2026-07-12 17:14:21.097373
+EXTRACTED LEAD
+{'name': 'Vinay', 'country': 'India', 'budget': 7000000, 'funding': 'Cash', 'timeline': 7, 'purpose': None}
+
+============================================================
+2026-07-12 17:14:21.098754
+BOT REPLY
+Is this purchase mainly for investment purposes or personal use?
+
+============================================================
+2026-07-12 17:14:26.552589
+USER MESSAGE
+Investment
+
+============================================================
+2026-07-12 17:14:26.553830
+CONVERSATION
+
+User: Vinay
+Assistant: Nice to meet you, Vinay 😊
+
+Which country are you currently residing in?
+User: India
+Assistant: Do you have an investment budget range in mind?
+User: 7000000+
+Assistant: Will the purchase be through cash or mortgage financing?
+User: Cash
+Assistant: What is your expected purchase timeline?
+User: 7
+Assistant: Is this purchase mainly for investment purposes or personal use?
+User: Investment
+
+============================================================
+2026-07-12 17:14:26.810470
+EXTRACTED LEAD
+{'name': 'Vinay', 'country': 'India', 'budget': 7000000, 'funding': 'Cash', 'timeline': 7, 'purpose': 'Investment'}
+
+============================================================
+2026-07-12 17:14:27.121385
+BOT REPLY
+That's wonderful 
+
+To better understand your requirements and recommend suitable opportunities, may I know your name?
