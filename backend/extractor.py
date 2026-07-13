@@ -17,74 +17,66 @@ co = cohere.ClientV2(
 def extract_lead(conversation):
 
     prompt = f"""
-You are a JSON extraction engine.
+You are an information extraction engine.
 
-Extract investor information ONLY for the CURRENT USER.
+Extract lead information from the CURRENT USER conversation.
 
-IMPORTANT RULES:
+IMPORTANT:
 
-1. Return EXACTLY ONE JSON object.
+1. Return ONLY JSON.
 
-2. Never return:
-- JSON arrays
-- Multiple objects
-- Explanations
-- Markdown
-- ```json
+2. Never explain.
 
-3. Ignore previous users.
+3. Never return markdown.
 
-4. Extract information only from the
-latest user messages.
+4. Never return arrays.
+
+5. Never return multiple objects.
+
+6. Use information mentioned earlier
+in the same conversation.
+
+7. Do NOT reset existing fields to null.
 
 Schema:
 
 {{
-    "name": null,
-    "country": null,
-    "budget": null,
-    "funding": null,
-    "timeline": null,
-    "purpose": null
+"name":null,
+"country":null,
+"budget":null,
+"funding":null,
+"timeline":null,
+"purpose":null
 }}
 
 Rules:
 
-name:
-First name only.
-
-country:
-Country of residence.
-
 budget:
-AED integer only.
+
+Convert to integer AED.
 
 Examples:
 
-1.5M → 1500000
-2 million → 2000000
+1M → 1000000
+2.5 million → 2500000
 
 funding:
+
 Only:
 
-- Cash
-- Mortgage
+Cash
+Mortgage
 
 timeline:
-Months integer only.
 
-Examples:
-
-2 months → 2
-within six months → 6
+Months integer.
 
 purpose:
+
 Only:
 
-- Investment
-- Personal Use
-
-Unknown or no values must remain null.
+Investment
+Personal Use
 
 Conversation:
 
@@ -98,6 +90,7 @@ Conversation:
             model="command-a-03-2025",
 
             messages=[
+
                 {
                     "role": "user",
                     "content": prompt
@@ -106,6 +99,7 @@ Conversation:
         )
 
         content = (
+
             response
             .message
             .content[0]
@@ -115,120 +109,47 @@ Conversation:
         print("\nRAW RESPONSE\n")
         print(content)
 
-        content = (
-            content
-            .replace("```json", "")
-            .replace("```", "")
-            .strip()
-        )
-
-        #################################################
-        # Extract only first JSON object
-        #################################################
-
         match = re.search(
+
             r'\{[\s\S]*\}',
             content
         )
 
         if not match:
 
-            raise Exception(
-                "No JSON found"
-            )
+            return {
 
-        content = match.group()
+                "name": None,
+                "country": None,
+                "budget": None,
+                "funding": None,
+                "timeline": None,
+                "purpose": None
+            }
 
         lead = json.loads(
-            content
+            match.group()
         )
-
-        #################################################
-        # Budget
-        #################################################
 
         if lead.get("budget"):
 
-            try:
-
-                lead["budget"] = int(
-                    float(
-                        lead["budget"]
-                    )
+            lead["budget"] = int(
+                float(
+                    lead["budget"]
                 )
-
-            except:
-
-                lead["budget"] = None
-
-        #################################################
-        # Timeline
-        #################################################
+            )
 
         if lead.get("timeline"):
 
-            try:
-
-                lead["timeline"] = int(
-                    float(
-                        lead["timeline"]
-                    )
+            lead["timeline"] = int(
+                float(
+                    lead["timeline"]
                 )
-
-            except:
-
-                lead["timeline"] = None
-
-        #################################################
-        # Normalize values
-        #################################################
-
-        if lead.get("funding"):
-
-            value = (
-                lead["funding"]
-                .strip()
-                .title()
             )
-
-            if value not in [
-
-                "Cash",
-                "Mortgage"
-            ]:
-
-                value = None
-
-            lead["funding"] = value
-
-        if lead.get("purpose"):
-
-            value = (
-                lead["purpose"]
-                .strip()
-                .title()
-            )
-
-            if value not in [
-
-                "Investment",
-                "Personal Use"
-            ]:
-
-                value = None
-
-            lead["purpose"] = value
-
-        print("\nLEAD\n")
-        print(lead)
 
         return lead
 
     except Exception as e:
-
-        print(
-            "\nEXTRACTION ERROR\n"
-        )
 
         print(e)
 
