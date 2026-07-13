@@ -26,20 +26,18 @@ co = cohere.ClientV2(
     )
 )
 
-# Store complete conversation
 conversation_memory = {}
-
-# Avoid duplicate sheet rows
 saved_users = set()
 
 
 #################################################
-# Helper Functions
+# Save Condition
 #################################################
 
 def should_save_lead(lead):
 
     fields = [
+
         lead.get("name"),
         lead.get("country"),
         lead.get("budget"),
@@ -78,6 +76,7 @@ def ask_llm(conversation):
             {
                 "role": "system",
                 "content":
+
                     SYSTEM_PROMPT
                     + "\n\nKnowledge Base:\n"
                     + knowledge_text
@@ -98,9 +97,8 @@ def ask_llm(conversation):
     )
 
 
-
 #################################################
-# Telegram Commands
+# Start
 #################################################
 
 async def start(
@@ -112,14 +110,15 @@ async def start(
 
     conversation_memory[user_id] = ""
 
-    if user_id in saved_users:
-        saved_users.remove(user_id)
+    saved_users.discard(
+        user_id
+    )
 
     await update.message.reply_text(
-        "Hi 👋\n\n"
+
+        "Hello 👋\n\n"
         "Welcome to Panache Homes.\n\n"
-        "I'd love to understand your Dubai property goals.\n\n"
-        "May I know your name?"
+        "How may I assist you today regarding Dubai real estate opportunities?"
     )
 
 
@@ -134,10 +133,13 @@ async def chat(
 
     user_id = update.effective_user.id
 
-    text = update.message.text
+    text = (
+        update.message.text
+        .strip()
+    )
 
     #################################################
-    # Create memory
+    # Create User Memory
     #################################################
 
     if user_id not in conversation_memory:
@@ -145,10 +147,41 @@ async def chat(
         conversation_memory[user_id] = ""
 
     #################################################
-    # Store message
+    # Greetings
+    #################################################
+
+    if (
+
+        text.lower()
+
+        in [
+
+            "hi",
+            "hello",
+            "hey",
+            "hii"
+        ]
+
+        and
+
+        conversation_memory[user_id] == ""
+    ):
+
+        await update.message.reply_text(
+
+            "Hello 👋\n\n"
+            "Welcome to Panache Homes.\n\n"
+            "How may I assist you today regarding Dubai real estate opportunities?"
+        )
+
+        return
+
+    #################################################
+    # Store Message
     #################################################
 
     conversation_memory[user_id] += (
+
         f"\nUser: {text}"
     )
 
@@ -160,19 +193,13 @@ async def chat(
     print(conversation)
 
     #################################################
-    # Ask LLM
+    # Recent Messages Only
     #################################################
 
-    reply = ask_llm(
+    recent_conversation = "\n".join(
+
         conversation
-    )
-
-    conversation_memory[user_id] += (
-        f"\nAssistant: {reply}"
-    )
-
-    await update.message.reply_text(
-        reply
+        .split("\n")[-10:]
     )
 
     #################################################
@@ -182,40 +209,72 @@ async def chat(
     try:
 
         lead = extract_lead(
-            conversation
+            recent_conversation
         )
 
     except Exception as e:
 
-        print("Extraction Error")
+        print(
+            "Extraction Error"
+        )
 
         print(e)
 
-        return
+        lead = {
+
+            "name": None,
+            "country": None,
+            "budget": None,
+            "funding": None,
+            "timeline": None,
+            "purpose": None
+        }
 
     print("\nLEAD\n")
-
     print(lead)
 
     #################################################
-    # Save only once
+    # Ask LLM
+    #################################################
+
+    reply = ask_llm(
+        recent_conversation
+    )
+
+    conversation_memory[user_id] += (
+
+        f"\nAssistant: {reply}"
+    )
+
+    await update.message.reply_text(
+        reply
+    )
+
+    #################################################
+    # Save Lead
     #################################################
 
     if (
+
         user_id not in saved_users
+
         and
+
         should_save_lead(
             lead
         )
     ):
 
         lead["grade"] = (
+
             calculate_grade(
                 lead
             )
         )
 
-        print("\nFINAL LEAD\n")
+        print(
+            "\nFINAL LEAD\n"
+        )
 
         print(lead)
 
@@ -227,6 +286,16 @@ async def chat(
 
             saved_users.add(
                 user_id
+            )
+
+            #################################################
+            # Clear Conversation
+            #################################################
+
+            conversation_memory.pop(
+
+                user_id,
+                None
             )
 
             print(
@@ -241,6 +310,27 @@ async def chat(
 
             print(e)
 
+    #################################################
+    # End Conversation
+    #################################################
+
+    if text.lower() in [
+
+        "bye",
+        "thank you",
+        "thanks",
+        "no thanks"
+    ]:
+
+        conversation_memory.pop(
+            user_id,
+            None
+        )
+
+        saved_users.discard(
+            user_id
+        )
+
 
 #################################################
 # Main
@@ -249,16 +339,20 @@ async def chat(
 if __name__ == "__main__":
 
     app = (
+
         ApplicationBuilder()
+
         .token(
             os.getenv(
                 "TELEGRAM_BOT_TOKEN"
             )
         )
+
         .build()
     )
 
     app.add_handler(
+
         CommandHandler(
             "start",
             start
@@ -266,6 +360,7 @@ if __name__ == "__main__":
     )
 
     app.add_handler(
+
         MessageHandler(
             filters.TEXT,
             chat
