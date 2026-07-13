@@ -1,7 +1,7 @@
 import os
+import cohere
 
 from dotenv import load_dotenv
-import cohere
 
 from telegram import Update
 from telegram.ext import (
@@ -21,46 +21,35 @@ from knowledge import KNOWLEDGE
 load_dotenv()
 
 co = cohere.ClientV2(
-    api_key=os.getenv(
-        "COHERE_API_KEY"
-    )
+    api_key=os.getenv("COHERE_API_KEY")
 )
 
 conversation_memory = {}
+lead_memory = {}
 saved_users = set()
 
 
-#################################################
-# Save Condition
-#################################################
-
-def should_save_lead(lead):
+def should_save(lead):
 
     fields = [
 
-        lead.get("name"),
-        lead.get("country"),
-        lead.get("budget"),
-        lead.get("funding"),
-        lead.get("timeline"),
-        lead.get("purpose")
+        lead["name"],
+        lead["country"],
+        lead["budget"],
+        lead["funding"],
+        lead["timeline"],
+        lead["purpose"]
     ]
 
-    filled = sum(
+    return sum(
         x is not None
         for x in fields
-    )
+    ) >= 6
 
-    return filled >= 4
-
-
-#################################################
-# LLM Response
-#################################################
 
 def ask_llm(conversation):
 
-    knowledge_text = "\n".join(
+    knowledge = "\n".join(
 
         f"{k}: {v}"
 
@@ -78,8 +67,8 @@ def ask_llm(conversation):
                 "content":
 
                     SYSTEM_PROMPT
-                    + "\n\nKnowledge Base:\n"
-                    + knowledge_text
+                    + "\n\nKnowledge:\n"
+                    + knowledge
             },
 
             {
@@ -90,16 +79,13 @@ def ask_llm(conversation):
     )
 
     return (
+
         response
         .message
         .content[0]
         .text
     )
 
-
-#################################################
-# Start
-#################################################
 
 async def start(
         update: Update,
@@ -109,6 +95,16 @@ async def start(
     user_id = update.effective_user.id
 
     conversation_memory[user_id] = ""
+
+    lead_memory[user_id] = {
+
+        "name": None,
+        "country": None,
+        "budget": None,
+        "funding": None,
+        "timeline": None,
+        "purpose": None
+    }
 
     saved_users.discard(
         user_id
@@ -122,10 +118,6 @@ async def start(
     )
 
 
-#################################################
-# Main Chat
-#################################################
-
 async def chat(
         update: Update,
         context: ContextTypes.DEFAULT_TYPE
@@ -133,48 +125,23 @@ async def chat(
 
     user_id = update.effective_user.id
 
-    text = (
-        update.message.text
-        .strip()
-    )
-
-    #################################################
-    # Create User Memory
-    #################################################
+    text = update.message.text.strip()
 
     if user_id not in conversation_memory:
 
         conversation_memory[user_id] = ""
 
-    #################################################
-    # Greetings
-    #################################################
+    if user_id not in lead_memory:
 
-    if (
+        lead_memory[user_id] = {
 
-        text.lower()
-
-        in [
-
-            "hi",
-            "hello",
-            "hey",
-            "hii"
-        ]
-
-        and
-
-        conversation_memory[user_id] == ""
-    ):
-
-        await update.message.reply_text(
-
-            "Hello 👋\n\n"
-            "Welcome to Panache Homes.\n\n"
-            "How may I assist you today regarding Dubai real estate opportunities?"
-        )
-
-        return
+            "name": None,
+            "country": None,
+            "budget": None,
+            "funding": None,
+            "timeline": None,
+            "purpose": None
+        }
 
     #################################################
     # Store Message
@@ -186,51 +153,32 @@ async def chat(
     )
 
     conversation = (
+
         conversation_memory[user_id]
     )
 
-    print("\nCONVERSATION\n")
-    print(conversation)
-
     #################################################
-    # Recent Messages Only
+    # Extract
     #################################################
 
-    recent_conversation = "\n".join(
-
+    new_data = extract_lead(
         conversation
-        .split("\n")[-10:]
     )
 
     #################################################
-    # Extract Lead
+    # Merge old + new
     #################################################
 
-    try:
+    for k, v in new_data.items():
 
-        lead = extract_lead(
-            recent_conversation
-        )
+        if v is not None:
 
-    except Exception as e:
+            lead_memory[user_id][k] = v
 
-        print(
-            "Extraction Error"
-        )
-
-        print(e)
-
-        lead = {
-
-            "name": None,
-            "country": None,
-            "budget": None,
-            "funding": None,
-            "timeline": None,
-            "purpose": None
-        }
+    lead = lead_memory[user_id]
 
     print("\nLEAD\n")
+
     print(lead)
 
     #################################################
@@ -238,7 +186,7 @@ async def chat(
     #################################################
 
     reply = ask_llm(
-        recent_conversation
+        conversation
     )
 
     conversation_memory[user_id] += (
@@ -251,7 +199,7 @@ async def chat(
     )
 
     #################################################
-    # Save Lead
+    # Save
     #################################################
 
     if (
@@ -260,7 +208,7 @@ async def chat(
 
         and
 
-        should_save_lead(
+        should_save(
             lead
         )
     ):
@@ -272,9 +220,7 @@ async def chat(
             )
         )
 
-        print(
-            "\nFINAL LEAD\n"
-        )
+        print("\nFINAL\n")
 
         print(lead)
 
@@ -288,37 +234,23 @@ async def chat(
                 user_id
             )
 
-            #################################################
-            # Clear Conversation
-            #################################################
-
-            conversation_memory.pop(
-
-                user_id,
-                None
-            )
-
             print(
                 "Lead Saved"
             )
 
         except Exception as e:
 
-            print(
-                "n8n Error"
-            )
-
             print(e)
 
     #################################################
-    # End Conversation
+    # End
     #################################################
 
     if text.lower() in [
 
         "bye",
-        "thank you",
         "thanks",
+        "thank you",
         "no thanks"
     ]:
 
@@ -327,14 +259,15 @@ async def chat(
             None
         )
 
+        lead_memory.pop(
+            user_id,
+            None
+        )
+
         saved_users.discard(
             user_id
         )
 
-
-#################################################
-# Main
-#################################################
 
 if __name__ == "__main__":
 
