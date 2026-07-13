@@ -1,0 +1,17 @@
+The most difficult thing was handling multi-user conversations and avoiding data leakages of previous users into current lead extraction.
+
+At first, the LLM returned multiple JSON objects, which resulted in wrongly assigned leads and repeating the same question. The whole chat history was passed to the lead extractor so this happened.
+
+To address the issue, I kept separate memories per user by using the Telegram user ID and, whenever I encountered new data, it was combined with the data we had before in a consistent manner.
+
+A big issue was to hook up Railway with n8n production webhooks on one hand and to set up the fully-automated Google Sheet population on the other.
+
+Had I a week more, I would have focused on what comes next improvements:
+
+1. Lead scoring by employing other factors.
+
+2. Knowledge base with retrieval augment.
+
+3. Founder dashboard for analytics.
+
+4. Human intervention and language support.
