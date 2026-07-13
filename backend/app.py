@@ -21,9 +21,7 @@ from knowledge import KNOWLEDGE
 load_dotenv()
 
 co = cohere.ClientV2(
-    api_key=os.getenv(
-        "COHERE_API_KEY"
-    )
+    api_key=os.getenv("COHERE_API_KEY")
 )
 
 conversation_memory = {}
@@ -31,9 +29,23 @@ lead_memory = {}
 saved_users = set()
 
 
-#################################################
-# LLM
-#################################################
+def should_save(lead):
+
+    fields = [
+
+        lead["name"],
+        lead["country"],
+        lead["budget"],
+        lead["funding"],
+        lead["timeline"],
+        lead["purpose"]
+    ]
+
+    return sum(
+        x is not None
+        for x in fields
+    ) >= 6
+
 
 def ask_llm(conversation):
 
@@ -75,80 +87,6 @@ def ask_llm(conversation):
     )
 
 
-#################################################
-# Save condition
-#################################################
-
-def should_save_lead(lead):
-
-    fields = [
-
-        lead["name"],
-        lead["country"],
-        lead["budget"],
-        lead["funding"],
-        lead["timeline"],
-        lead["purpose"]
-    ]
-
-    return sum(
-        x is not None
-        for x in fields
-    ) >= 4
-
-
-#################################################
-# Missing Question
-#################################################
-
-def get_next_question(lead):
-
-    if not lead["name"]:
-
-        return "May I know your name?"
-
-    if not lead["country"]:
-
-        return (
-            f"Thank you, {lead['name']} 😊\n\n"
-            "Which country are you currently residing in?"
-        )
-
-    if not lead["budget"]:
-
-        return (
-            "Do you have an investment "
-            "budget range in mind (AED)?"
-        )
-
-    if not lead["funding"]:
-
-        return (
-            "Will this purchase be through "
-            "Cash or Mortgage financing?"
-        )
-
-    if not lead["timeline"]:
-
-        return (
-            "What is your expected "
-            "purchase timeline?"
-        )
-
-    if not lead["purpose"]:
-
-        return (
-            "Will this property be for "
-            "Investment or Personal Use?"
-        )
-
-    return None
-
-
-#################################################
-# START
-#################################################
-
 async def start(
         update: Update,
         context: ContextTypes.DEFAULT_TYPE
@@ -176,14 +114,9 @@ async def start(
 
         "Hello 👋\n\n"
         "Welcome to Panache Homes.\n\n"
-        "How may I assist you "
-        "regarding Dubai real estate?"
+        "How may I assist you today regarding Dubai real estate opportunities?"
     )
 
-
-#################################################
-# CHAT
-#################################################
 
 async def chat(
         update: Update,
@@ -192,12 +125,7 @@ async def chat(
 
     user_id = update.effective_user.id
 
-    text = (
-        update.message.text
-        .strip()
-    )
-
-    #################################################
+    text = update.message.text.strip()
 
     if user_id not in conversation_memory:
 
@@ -216,40 +144,6 @@ async def chat(
         }
 
     #################################################
-    # Greetings
-    #################################################
-
-    greetings = [
-
-        "hi",
-        "hello",
-        "hey",
-        "good morning"
-    ]
-
-    if (
-
-        text.lower()
-
-        in greetings
-
-        and
-
-        conversation_memory[user_id]
-        == ""
-
-    ):
-
-        await update.message.reply_text(
-
-            "Hello 👋\n\n"
-            "Welcome to Panache Homes.\n\n"
-            "How may I assist you today?"
-        )
-
-        return
-
-    #################################################
     # Store Message
     #################################################
 
@@ -259,62 +153,41 @@ async def chat(
     )
 
     conversation = (
+
         conversation_memory[user_id]
     )
-
-    print("\nCONVERSATION\n")
-    print(conversation)
 
     #################################################
     # Extract
     #################################################
 
-    extracted = extract_lead(
+    new_data = extract_lead(
         conversation
     )
 
     #################################################
-    # Merge
+    # Merge old + new
     #################################################
 
-    for k, v in extracted.items():
+    for k, v in new_data.items():
 
         if v is not None:
 
             lead_memory[user_id][k] = v
 
-    lead = (
-        lead_memory[user_id]
-    )
+    lead = lead_memory[user_id]
 
     print("\nLEAD\n")
+
     print(lead)
 
     #################################################
-    # Ask Missing Questions
+    # Ask LLM
     #################################################
 
-    next_question = (
-        get_next_question(
-            lead
-        )
+    reply = ask_llm(
+        conversation
     )
-
-    if next_question:
-
-        reply = next_question
-
-    else:
-
-        #################################################
-        # Knowledge phase
-        #################################################
-
-        reply = ask_llm(
-            conversation
-        )
-
-    #################################################
 
     conversation_memory[user_id] += (
 
@@ -335,7 +208,7 @@ async def chat(
 
         and
 
-        should_save_lead(
+        should_save(
             lead
         )
     ):
@@ -348,6 +221,7 @@ async def chat(
         )
 
         print("\nFINAL\n")
+
         print(lead)
 
         try:
@@ -369,28 +243,16 @@ async def chat(
             print(e)
 
     #################################################
-    # End conversation
+    # End
     #################################################
 
     if text.lower() in [
 
-        "thank you",
-        "thanks",
         "bye",
+        "thanks",
+        "thank you",
         "no thanks"
     ]:
-
-        await update.message.reply_text(
-
-            "Thank you for contacting "
-            "Panache Homes 😊\n\n"
-            "Should you require any "
-            "further assistance regarding "
-            "Dubai real estate opportunities, "
-            "please feel free to reach out.\n\n"
-            "Best regards,\n"
-            "Panache Homes"
-        )
 
         conversation_memory.pop(
             user_id,
@@ -406,10 +268,6 @@ async def chat(
             user_id
         )
 
-
-#################################################
-# MAIN
-#################################################
 
 if __name__ == "__main__":
 
