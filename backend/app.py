@@ -21,15 +21,19 @@ from knowledge import KNOWLEDGE
 load_dotenv()
 
 co = cohere.ClientV2(
-    api_key=os.getenv("COHERE_API_KEY")
+    api_key=os.getenv(
+        "COHERE_API_KEY"
+    )
 )
 
 conversation_memory = {}
+
 lead_memory = {}
+
 saved_users = set()
 
 
-def should_save(lead):
+def should_save_lead(lead):
 
     fields = [
 
@@ -41,15 +45,17 @@ def should_save(lead):
         lead["purpose"]
     ]
 
-    return sum(
+    filled = sum(
         x is not None
         for x in fields
-    ) >= 6
+    )
+
+    return filled >= 4
 
 
 def ask_llm(conversation):
 
-    knowledge = "\n".join(
+    knowledge_text = "\n".join(
 
         f"{k}: {v}"
 
@@ -67,8 +73,8 @@ def ask_llm(conversation):
                 "content":
 
                     SYSTEM_PROMPT
-                    + "\n\nKnowledge:\n"
-                    + knowledge
+                    + "\n\nKnowledge Base:\n"
+                    + knowledge_text
             },
 
             {
@@ -79,7 +85,6 @@ def ask_llm(conversation):
     )
 
     return (
-
         response
         .message
         .content[0]
@@ -125,7 +130,10 @@ async def chat(
 
     user_id = update.effective_user.id
 
-    text = update.message.text.strip()
+    text = (
+        update.message.text
+        .strip()
+    )
 
     if user_id not in conversation_memory:
 
@@ -144,7 +152,7 @@ async def chat(
         }
 
     #################################################
-    # Store Message
+    # Store current user's conversation
     #################################################
 
     conversation_memory[user_id] += (
@@ -153,36 +161,36 @@ async def chat(
     )
 
     conversation = (
-
         conversation_memory[user_id]
     )
 
     #################################################
-    # Extract
+    # Extract latest data
     #################################################
 
-    new_data = extract_lead(
+    extracted = extract_lead(
         conversation
     )
 
     #################################################
-    # Merge old + new
+    # Merge data
     #################################################
 
-    for k, v in new_data.items():
+    for k, v in extracted.items():
 
         if v is not None:
 
             lead_memory[user_id][k] = v
 
-    lead = lead_memory[user_id]
+    lead = (
+        lead_memory[user_id]
+    )
 
-    print("\nLEAD\n")
-
+    print("\nCURRENT LEAD\n")
     print(lead)
 
     #################################################
-    # Ask LLM
+    # Ask assistant
     #################################################
 
     reply = ask_llm(
@@ -199,7 +207,7 @@ async def chat(
     )
 
     #################################################
-    # Save
+    # Save once
     #################################################
 
     if (
@@ -208,20 +216,18 @@ async def chat(
 
         and
 
-        should_save(
+        should_save_lead(
             lead
         )
     ):
 
         lead["grade"] = (
-
             calculate_grade(
                 lead
             )
         )
 
-        print("\nFINAL\n")
-
+        print("\nFINAL LEAD\n")
         print(lead)
 
         try:
@@ -240,17 +246,21 @@ async def chat(
 
         except Exception as e:
 
+            print(
+                "n8n Error"
+            )
+
             print(e)
 
     #################################################
-    # End
+    # End conversation
     #################################################
 
     if text.lower() in [
 
         "bye",
-        "thanks",
         "thank you",
+        "thanks",
         "no thanks"
     ]:
 
@@ -267,41 +277,3 @@ async def chat(
         saved_users.discard(
             user_id
         )
-
-
-if __name__ == "__main__":
-
-    app = (
-
-        ApplicationBuilder()
-
-        .token(
-            os.getenv(
-                "TELEGRAM_BOT_TOKEN"
-            )
-        )
-
-        .build()
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-            "start",
-            start
-        )
-    )
-
-    app.add_handler(
-
-        MessageHandler(
-            filters.TEXT,
-            chat
-        )
-    )
-
-    print(
-        "Bot Running..."
-    )
-
-    app.run_polling()
