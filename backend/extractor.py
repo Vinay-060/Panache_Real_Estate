@@ -156,9 +156,12 @@ Conversation:
 
     try:
 
-        lead = json.loads(
-            content
-        )
+        lead = json.loads(content)
+
+
+        if isinstance(lead, list):
+
+            lead = lead[-1]
 
         if lead.get("budget"):
 
@@ -191,3 +194,5 @@ Conversation:
             "timeline": None,
             "purpose": None
         }
+        
+        
