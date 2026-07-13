@@ -27,35 +27,17 @@ co = cohere.ClientV2(
 )
 
 conversation_memory = {}
-
 lead_memory = {}
-
 saved_users = set()
 
 
-def should_save_lead(lead):
-
-    fields = [
-
-        lead["name"],
-        lead["country"],
-        lead["budget"],
-        lead["funding"],
-        lead["timeline"],
-        lead["purpose"]
-    ]
-
-    filled = sum(
-        x is not None
-        for x in fields
-    )
-
-    return filled >= 4
-
+#################################################
+# LLM
+#################################################
 
 def ask_llm(conversation):
 
-    knowledge_text = "\n".join(
+    knowledge = "\n".join(
 
         f"{k}: {v}"
 
@@ -73,8 +55,8 @@ def ask_llm(conversation):
                 "content":
 
                     SYSTEM_PROMPT
-                    + "\n\nKnowledge Base:\n"
-                    + knowledge_text
+                    + "\n\nKnowledge:\n"
+                    + knowledge
             },
 
             {
@@ -85,12 +67,87 @@ def ask_llm(conversation):
     )
 
     return (
+
         response
         .message
         .content[0]
         .text
     )
 
+
+#################################################
+# Save condition
+#################################################
+
+def should_save_lead(lead):
+
+    fields = [
+
+        lead["name"],
+        lead["country"],
+        lead["budget"],
+        lead["funding"],
+        lead["timeline"],
+        lead["purpose"]
+    ]
+
+    return sum(
+        x is not None
+        for x in fields
+    ) >= 4
+
+
+#################################################
+# Missing Question
+#################################################
+
+def get_next_question(lead):
+
+    if not lead["name"]:
+
+        return "May I know your name?"
+
+    if not lead["country"]:
+
+        return (
+            f"Thank you, {lead['name']} 😊\n\n"
+            "Which country are you currently residing in?"
+        )
+
+    if not lead["budget"]:
+
+        return (
+            "Do you have an investment "
+            "budget range in mind (AED)?"
+        )
+
+    if not lead["funding"]:
+
+        return (
+            "Will this purchase be through "
+            "Cash or Mortgage financing?"
+        )
+
+    if not lead["timeline"]:
+
+        return (
+            "What is your expected "
+            "purchase timeline?"
+        )
+
+    if not lead["purpose"]:
+
+        return (
+            "Will this property be for "
+            "Investment or Personal Use?"
+        )
+
+    return None
+
+
+#################################################
+# START
+#################################################
 
 async def start(
         update: Update,
@@ -119,9 +176,14 @@ async def start(
 
         "Hello 👋\n\n"
         "Welcome to Panache Homes.\n\n"
-        "How may I assist you today regarding Dubai real estate opportunities?"
+        "How may I assist you "
+        "regarding Dubai real estate?"
     )
 
+
+#################################################
+# CHAT
+#################################################
 
 async def chat(
         update: Update,
@@ -134,6 +196,8 @@ async def chat(
         update.message.text
         .strip()
     )
+
+    #################################################
 
     if user_id not in conversation_memory:
 
@@ -152,7 +216,41 @@ async def chat(
         }
 
     #################################################
-    # Store current user's conversation
+    # Greetings
+    #################################################
+
+    greetings = [
+
+        "hi",
+        "hello",
+        "hey",
+        "good morning"
+    ]
+
+    if (
+
+        text.lower()
+
+        in greetings
+
+        and
+
+        conversation_memory[user_id]
+        == ""
+
+    ):
+
+        await update.message.reply_text(
+
+            "Hello 👋\n\n"
+            "Welcome to Panache Homes.\n\n"
+            "How may I assist you today?"
+        )
+
+        return
+
+    #################################################
+    # Store Message
     #################################################
 
     conversation_memory[user_id] += (
@@ -164,8 +262,11 @@ async def chat(
         conversation_memory[user_id]
     )
 
+    print("\nCONVERSATION\n")
+    print(conversation)
+
     #################################################
-    # Extract latest data
+    # Extract
     #################################################
 
     extracted = extract_lead(
@@ -173,7 +274,7 @@ async def chat(
     )
 
     #################################################
-    # Merge data
+    # Merge
     #################################################
 
     for k, v in extracted.items():
@@ -186,16 +287,34 @@ async def chat(
         lead_memory[user_id]
     )
 
-    print("\nCURRENT LEAD\n")
+    print("\nLEAD\n")
     print(lead)
 
     #################################################
-    # Ask assistant
+    # Ask Missing Questions
     #################################################
 
-    reply = ask_llm(
-        conversation
+    next_question = (
+        get_next_question(
+            lead
+        )
     )
+
+    if next_question:
+
+        reply = next_question
+
+    else:
+
+        #################################################
+        # Knowledge phase
+        #################################################
+
+        reply = ask_llm(
+            conversation
+        )
+
+    #################################################
 
     conversation_memory[user_id] += (
 
@@ -207,7 +326,7 @@ async def chat(
     )
 
     #################################################
-    # Save once
+    # Save
     #################################################
 
     if (
@@ -222,12 +341,13 @@ async def chat(
     ):
 
         lead["grade"] = (
+
             calculate_grade(
                 lead
             )
         )
 
-        print("\nFINAL LEAD\n")
+        print("\nFINAL\n")
         print(lead)
 
         try:
@@ -246,10 +366,6 @@ async def chat(
 
         except Exception as e:
 
-            print(
-                "n8n Error"
-            )
-
             print(e)
 
     #################################################
@@ -258,11 +374,23 @@ async def chat(
 
     if text.lower() in [
 
-        "bye",
         "thank you",
         "thanks",
+        "bye",
         "no thanks"
     ]:
+
+        await update.message.reply_text(
+
+            "Thank you for contacting "
+            "Panache Homes 😊\n\n"
+            "Should you require any "
+            "further assistance regarding "
+            "Dubai real estate opportunities, "
+            "please feel free to reach out.\n\n"
+            "Best regards,\n"
+            "Panache Homes"
+        )
 
         conversation_memory.pop(
             user_id,
@@ -277,3 +405,45 @@ async def chat(
         saved_users.discard(
             user_id
         )
+
+
+#################################################
+# MAIN
+#################################################
+
+if __name__ == "__main__":
+
+    app = (
+
+        ApplicationBuilder()
+
+        .token(
+            os.getenv(
+                "TELEGRAM_BOT_TOKEN"
+            )
+        )
+
+        .build()
+    )
+
+    app.add_handler(
+
+        CommandHandler(
+            "start",
+            start
+        )
+    )
+
+    app.add_handler(
+
+        MessageHandler(
+            filters.TEXT,
+            chat
+        )
+    )
+
+    print(
+        "Bot Running..."
+    )
+
+    app.run_polling()
