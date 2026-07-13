@@ -14,67 +14,79 @@ co = cohere.ClientV2(
 )
 
 
+EMPTY_LEAD = {
+    "name": None,
+    "country": None,
+    "budget": None,
+    "funding": None,
+    "timeline": None,
+    "purpose": None
+}
+
+
 def extract_lead(conversation):
 
     prompt = f"""
 You are an information extraction engine.
 
-Extract lead information from the CURRENT USER conversation.
+Extract information ONLY for the CURRENT USER.
 
-IMPORTANT:
+IMPORTANT RULES:
 
-1. Return ONLY JSON.
+1. Return ONLY ONE JSON object.
 
-2. Never explain.
+2. Never return:
+- explanations
+- markdown
+- arrays
+- multiple objects
 
-3. Never return markdown.
+3. Ignore other users.
 
-4. Never return arrays.
+4. If information is unavailable,
+unknown or user refuses to answer,
+return null.
 
-5. Never return multiple objects.
+Examples:
 
-6. Use information mentioned earlier
-in the same conversation.
+"I don't know budget"
+→ budget = null
 
-7. Do NOT reset existing fields to null.
+"No timeline yet"
+→ timeline = null
+
+"Just exploring"
+→ purpose = null
 
 Schema:
 
 {{
-"name":null,
-"country":null,
-"budget":null,
-"funding":null,
-"timeline":null,
-"purpose":null
+    "name": null,
+    "country": null,
+    "budget": null,
+    "funding": null,
+    "timeline": null,
+    "purpose": null
 }}
 
 Rules:
 
 budget:
+AED integer only.
 
-Convert to integer AED.
-
-Examples:
-
-1M → 1000000
-2.5 million → 2500000
+1.5M → 1500000
+2 million → 2000000
 
 funding:
-
 Only:
-
 Cash
 Mortgage
 
 timeline:
-
 Months integer.
 
 purpose:
-
 Only:
-
 Investment
 Personal Use
 
@@ -90,7 +102,6 @@ Conversation:
             model="command-a-03-2025",
 
             messages=[
-
                 {
                     "role": "user",
                     "content": prompt
@@ -99,7 +110,6 @@ Conversation:
         )
 
         content = (
-
             response
             .message
             .content[0]
@@ -110,22 +120,13 @@ Conversation:
         print(content)
 
         match = re.search(
-
             r'\{[\s\S]*\}',
             content
         )
 
         if not match:
 
-            return {
-
-                "name": None,
-                "country": None,
-                "budget": None,
-                "funding": None,
-                "timeline": None,
-                "purpose": None
-            }
+            return EMPTY_LEAD.copy()
 
         lead = json.loads(
             match.group()
@@ -133,32 +134,53 @@ Conversation:
 
         if lead.get("budget"):
 
-            lead["budget"] = int(
-                float(
-                    lead["budget"]
+            try:
+                lead["budget"] = int(
+                    float(
+                        lead["budget"]
+                    )
                 )
-            )
+            except:
+                lead["budget"] = None
 
         if lead.get("timeline"):
 
-            lead["timeline"] = int(
-                float(
-                    lead["timeline"]
+            try:
+                lead["timeline"] = int(
+                    float(
+                        lead["timeline"]
+                    )
                 )
-            )
-
-        return lead
-
-    except Exception as e:
-
-        print(e)
+            except:
+                lead["timeline"] = None
 
         return {
 
-            "name": None,
-            "country": None,
-            "budget": None,
-            "funding": None,
-            "timeline": None,
-            "purpose": None
+            "name":
+                lead.get("name"),
+
+            "country":
+                lead.get("country"),
+
+            "budget":
+                lead.get("budget"),
+
+            "funding":
+                lead.get("funding"),
+
+            "timeline":
+                lead.get("timeline"),
+
+            "purpose":
+                lead.get("purpose")
         }
+
+    except Exception as e:
+
+        print(
+            "\nEXTRACTION ERROR\n"
+        )
+
+        print(e)
+
+        return EMPTY_LEAD.copy()
